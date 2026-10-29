@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Evaluation Dashboard & Database Management System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Noto Sans Lao & Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Lao:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SheetJS (xlsx) for Export/Import Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans Lao', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', 'Noto Sans Lao', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <div class="p-6 text-center">
+                <div class="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-sm">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 id="confirmModalTitle" class="text-lg font-bold text-slate-800 mb-2">ຢືນຢັນການດຳເນີນການ</h3>
+                <p id="confirmModalMessage" class="text-sm text-slate-600 leading-relaxed">ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລົບຂໍ້ມູນນີ້?</p>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+                <button id="confirmCancelBtn" class="px-4 py-2 text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-xl font-medium text-xs transition-colors">
+                    ຍົກເລີກ
+                </button>
+                <button id="confirmOkBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium text-xs transition-colors shadow-md shadow-red-500/20">
+                    ຕົກລົງ (ລົບຂໍ້ມູນ)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIN Modal for Tab Admin Security -->
+    <div id="adminPinModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <div class="p-6 text-center">
+                <div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-sm">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">ກະລຸນາໃສ່ລະຫັດເຂົ້າ Tab Admin</h3>
+                <p class="text-xs text-slate-500 mb-4">ປ້ອນລະຫັດຜ່ານເພື່ອເຂົ້າເຖິງໜ້າຈັດການ Tab Admins</p>
+                <form onsubmit="verifyAdminPin(event)">
+                    <input type="password" id="adminPinInput" required placeholder="ໃສ່ລະຫັດຜ່ານ..." 
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none transition-all text-sm font-medium text-center mb-4">
+                    <div class="flex gap-2">
+                        <button type="button" onclick="toggleModal('adminPinModal')" class="flex-1 px-4 py-2.5 text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-xl font-medium text-xs transition-colors">
+                            ຍົກເລີກ
+                        </button>
+                        <button type="submit" class="flex-1 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium text-xs transition-colors shadow-md">
+                            ຢືນຢັນ
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Modal for Evaluation Matrix & Missing Assessment Inspection -->
+    <div id="statusInspectModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-slate-900 text-white flex justify-between items-center">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-amber-400"></i> ລາຍລະອຽດການຕິດຕາມການປະເມິນພະແນກ (Evaluation Progress Matrix)
+                </h3>
+                <button onclick="toggleModal('statusInspectModal')" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                    <div class="p-3 bg-slate-50 border rounded-xl">
+                        <p class="text-[11px] text-slate-500 font-medium">ຈຳນວນຜູ້ປະເມິນ (Users)</p>
+                        <p id="inspectUserCount" class="text-xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="p-3 bg-slate-50 border rounded-xl">
+                        <p class="text-[11px] text-slate-500 font-medium">ຈຳນວນຜູ້ຖືກປະເມິນ (Evaluatees)</p>
+                        <p id="inspectEvaluateeCount" class="text-xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+                        <p class="text-[11px] text-emerald-600 font-medium">ປະເມິນແລ້ວ (Completed Pairs)</p>
+                        <p id="inspectCompletedPairs" class="text-xl font-bold text-emerald-600">0</p>
+                    </div>
+                    <div class="p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                        <p class="text-[11px] text-amber-600 font-medium">ຍັງບໍ່ປະເມິນ (Missing Pairs)</p>
+                        <p id="inspectMissingPairs" class="text-xl font-bold text-amber-600">0</p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs font-semibold mb-1">
+                        <span class="text-slate-600">ຄວາມຄືບໜ້າການປະເມິນຄົບທຸກຄົນ (Progress)</span>
+                        <span id="inspectPercentText" class="text-brand-600">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                        <div id="inspectProgressBar" class="bg-brand-600 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Search & Specific ID Filters inside Matrix Modal -->
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" id="inspectSearchInput" oninput="renderStatusInspectModal()" placeholder="ຄົ້ນຫາຕາມ ID, ຊື່..." 
+                            class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <select id="inspectUserFilter" onchange="renderStatusInspectModal()" class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="">-- ທຸກ User ID --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <select id="inspectEvaluateeFilter" onchange="renderStatusInspectModal()" class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="">-- ທຸກ Evaluatee ID --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex border-b border-slate-200 gap-4 text-xs font-semibold">
+                    <button id="inspectTabMissing" onclick="switchInspectModalTab('missing')" class="py-2 border-b-2 border-amber-500 text-amber-600">
+                        <i class="fa-solid fa-circle-xmark mr-1"></i> ລາຍຊື່ຄົນທີ່ຍັງບໍ່ທັນປະເມິນ (<span id="tabMissingBadge">0</span>)
+                    </button>
+                    <button id="inspectTabMatrix" onclick="switchInspectModalTab('matrix')" class="py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-table-cells mr-1"></i> ຕາຕະລາງ Matrix (User vs Evaluatee)
+                    </button>
+                </div>
+
+                <div id="inspectListContainer" class="space-y-2 max-h-72 overflow-y-auto"></div>
+            </div>
+            <div class="px-6 py-3 bg-slate-50 border-t flex justify-end">
+                <button onclick="toggleModal('statusInspectModal')" class="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-xl text-xs font-medium transition-colors">
+                    ປິດໜ້າຕ່າງ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Popup for SQL Schema & RLS Policies -->
+    <div id="sqlModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-slate-800 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-database text-indigo-400"></i> Supabase SQL Schema & Full RLS Setup
+                </h3>
+                <button onclick="toggleModal('sqlModal')" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4 text-sm font-mono bg-slate-950 text-slate-200">
+                <div class="flex justify-between items-center text-xs text-slate-400">
+                    <span>ຄັດລອກ SQL ນີ້ໄປວາງໃສ່ Supabase SQL Editor ເພື່ອສ້າງ Tables ແລະ RLS (Full CRUD):</span>
+                    <button onclick="copySqlCode()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded transition-colors text-xs flex items-center gap-1 font-sans">
+                        <i class="fa-regular fa-copy"></i> Copy SQL
+                    </button>
+                </div>
+                <pre id="sqlCode" class="p-4 bg-slate-900 rounded-lg border border-slate-800 overflow-x-auto text-emerald-400 text-xs leading-relaxed">
+-- ========================================================
+-- 1. CREATE TABLES
+-- ========================================================
+
+CREATE TABLE IF NOT EXISTS admin (
+    admin_id VARCHAR PRIMARY KEY,
+    password VARCHAR NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+INSERT INTO admin (admin_id, password) 
+VALUES ('admin', '123456')
+ON CONFLICT (admin_id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS users (
+    id_user VARCHAR PRIMARY KEY,
+    password VARCHAR NOT NULL,
+    department VARCHAR,
+    create_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS evaluatees (
+    id_evaluatee VARCHAR PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    surname VARCHAR,
+    position VARCHAR,
+    department VARCHAR,
+    create_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS lists (
+    id_list VARCHAR PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    create_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS datas (
+    id_data VARCHAR PRIMARY KEY,
+    id_user VARCHAR REFERENCES users(id_user) ON DELETE CASCADE ON UPDATE CASCADE,
+    id_evaluatee VARCHAR REFERENCES evaluatees(id_evaluatee) ON DELETE CASCADE ON UPDATE CASCADE,
+    time_add INT,
+    model_add VARCHAR,
+    score NUMERIC,
+    comment TEXT,
+    create_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- ========================================================
+-- 2. ENABLE ROW LEVEL SECURITY (RLS) & FULL CRUD POLICIES
+-- ========================================================
+
+ALTER TABLE admin ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE evaluatees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE datas ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Enable full access for admin" ON admin;
+DROP POLICY IF EXISTS "Enable full access for users" ON users;
+DROP POLICY IF EXISTS "Enable full access for evaluatees" ON evaluatees;
+DROP POLICY IF EXISTS "Enable full access for lists" ON lists;
+DROP POLICY IF EXISTS "Enable full access for datas" ON datas;
+
+CREATE POLICY "Enable full access for admin" ON admin FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable full access for users" ON users FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable full access for evaluatees" ON evaluatees FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable full access for lists" ON lists FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable full access for datas" ON datas FOR ALL USING (true) WITH CHECK (true);
+                </pre>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t flex justify-end">
+                <button onclick="toggleModal('sqlModal')" class="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dynamic Form Modal (Create / Edit) -->
+    <div id="formModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
+            <div class="px-6 py-4 bg-brand-600 text-white flex justify-between items-center">
+                <h3 id="formModalTitle" class="font-bold text-lg">Manage Record</h3>
+                <button onclick="toggleModal('formModal')" class="text-white/80 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <form id="dynamicForm" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="formTable">
+                <input type="hidden" id="formIsEdit" value="false">
+                <input type="hidden" id="formOriginalId" value="">
+                
+                <div id="formFieldsContainer" class="space-y-4 max-h-[60vh] overflow-y-auto pr-1"></div>
+
+                <div class="pt-4 border-t flex justify-end gap-3">
+                    <button type="button" onclick="toggleModal('formModal')" class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-medium text-sm transition-colors">
+                        ຍົກເລີກ
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium text-sm transition-colors flex items-center gap-2 shadow-lg shadow-brand-500/30">
+                        <i class="fa-solid fa-save"></i> ບັນທຶກຂໍ້ມູນ
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LOGIN SCREEN -->
+    <section id="loginScreen" class="min-h-screen flex items-center justify-center p-4 bg-slate-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-black">
+        <div class="w-full max-w-md">
+            <div class="bg-white/95 rounded-3xl p-8 shadow-2xl border border-white/20 glass">
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-gradient-to-tr from-brand-600 to-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-brand-500/30">
+                        <i class="fa-solid fa-user-shield text-2xl text-white"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-slate-800">ລະບົບປະເມິນພະນັກງານ</h1>
+                    <p class="text-sm text-slate-500 mt-1">Employee Evaluation System Login</p>
+                </div>
+
+                <form onsubmit="handleLogin(event)" class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Admin ID (รหัสพนักงาน)</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-id-badge absolute left-4 top-3.5 text-slate-400"></i>
+                            <input type="text" id="loginAdminId" required placeholder="ป้อนรหัส admin" 
+                                class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none transition-all text-sm font-medium">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Password (รหัสผ่าน)</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-4 top-3.5 text-slate-400"></i>
+                            <input type="password" id="loginPassword" required placeholder="••••••••" 
+                                class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none transition-all text-sm font-medium">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-600 select-none">
+                            <input type="checkbox" id="rememberMe" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                            <span>ຈື່ຈຳການເຂົ້າລະບົບ (1 ວັນ)</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-right-to-bracket"></i> ເຂົ້າສູ່ລະບົບ (Login)
+                    </button>
+                </form>
+
+                <div class="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-2">
+                    <button onclick="toggleModal('sqlModal')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-database text-indigo-500"></i> ເບິ່ງຄຳສັ່ງ SQL & RLS Setup
+                    </button>
+                    <p class="text-xs text-center text-slate-400 mt-2">
+                        Default User: <span class="font-semibold text-slate-600">admin</span> | Pass: <span class="font-semibold text-slate-600">123456</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MAIN DASHBOARD SYSTEM -->
+    <div id="mainDashboard" class="hidden min-h-screen flex flex-col">
+        <!-- HEADER -->
+        <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-white shadow-md relative">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            <span id="liveSyncIndicator" class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-900 animate-pulse" title="Real-time Auto Sync Active"></span>
+                        </div>
+                        <div>
+                            <span class="font-bold text-lg tracking-tight block leading-none">EVAL DASHBOARD</span>
+                            <span class="text-[10px] text-slate-400 tracking-wider flex items-center gap-1">
+                                DATABASE MANAGEMENT
+                                <span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
+                                <span class="text-[9px] text-emerald-400 font-medium uppercase">Live Sync</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div class="hidden sm:flex items-center gap-3 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700">
+                            <div class="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center text-xs text-white font-bold">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <span id="currentAdminDisplay" class="text-xs font-medium text-slate-200">Admin</span>
+                        </div>
+
+                        <button onclick="toggleModal('sqlModal')" class="p-2 text-slate-400 hover:text-white transition-colors" title="SQL Schema & RLS">
+                            <i class="fa-solid fa-code text-lg"></i>
+                        </button>
+
+                        <button onclick="handleLogout()" class="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                            <span class="hidden sm:inline">ອອກຈາກລະບົບ</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NAVIGATION TABS -->
+            <nav class="bg-slate-800/90 border-t border-slate-700/60 overflow-x-auto">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 sm:space-x-2 py-2">
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 bg-brand-600 text-white">
+                        <i class="fa-solid fa-gauge-high"></i> Dashboard
+                    </button>
+                    <button onclick="switchTab('users')" id="tab-users" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-700/50">
+                        <i class="fa-solid fa-users"></i> Users
+                    </button>
+                    <button onclick="switchTab('evaluatees')" id="tab-evaluatees" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-700/50">
+                        <i class="fa-solid fa-user-check"></i> Evaluatees
+                    </button>
+                    <button onclick="switchTab('lists')" id="tab-lists" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-700/50">
+                        <i class="fa-solid fa-list-check"></i> Lists
+                    </button>
+                    <button onclick="switchTab('datas')" id="tab-datas" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-700/50">
+                        <i class="fa-solid fa-database"></i> Evaluation Datas
+                    </button>
+                    <button onclick="requestAdminTabAccess()" id="tab-admin" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-700/50">
+                        <i class="fa-solid fa-user-shield"></i> Admins
+                    </button>
+                </div>
+            </nav>
+        </header>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+            <!-- VIEW 1: DASHBOARD SUMMARY -->
+            <section id="view-dashboard" class="space-y-6">
+                <div class="bg-gradient-to-r from-brand-600 to-indigo-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+                    <div class="relative z-10 max-w-xl">
+                        <h2 class="text-2xl sm:text-3xl font-bold">ສະບາຍດີ, ລະບົບປະເມິນພະນັກງານ</h2>
+                        <p class="text-indigo-100 text-sm mt-2">ຍິນດີຕ້ອນຮັບເຂົ້າສູ່ລະບົບຈັດການຖານຂໍ້ມູນ ແລະ ປະເມິນຜົນ. ທ່ານສາມາດ CRUD ຂໍ້ມູນ ແລະ Import/Export Excel ໄດ້ຢ່າງສະດວກ.</p>
+                    </div>
+                    <i class="fa-solid fa-chart-line text-white/10 text-9xl absolute -right-6 -bottom-8 pointer-events-none"></i>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Users</span>
+                            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><i class="fa-solid fa-users"></i></div>
+                        </div>
+                        <div id="statUsers" class="text-2xl font-bold text-slate-800 mt-2">0</div>
+                        <p class="text-[11px] text-slate-500 mt-1">ຜູ້ໃຊ້ງານໃນລະບົບ</p>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Evaluatees</span>
+                            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center"><i class="fa-solid fa-user-check"></i></div>
+                        </div>
+                        <div id="statEvaluatees" class="text-2xl font-bold text-slate-800 mt-2">0</div>
+                        <p class="text-[11px] text-slate-500 mt-1">ຜູ້ຖືກປະເມິນ</p>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Lists</span>
+                            <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center"><i class="fa-solid fa-list-check"></i></div>
+                        </div>
+                        <div id="statLists" class="text-2xl font-bold text-slate-800 mt-2">0</div>
+                        <p class="text-[11px] text-slate-500 mt-1">ລາຍການປະເມິນ</p>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Datas</span>
+                            <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center"><i class="fa-solid fa-database"></i></div>
+                        </div>
+                        <div id="statDatas" class="text-2xl font-bold text-slate-800 mt-2">0</div>
+                        <p class="text-[11px] text-slate-500 mt-1">ຜົນການປະເມິນທັງໝົດ</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+                    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-rocket text-brand-600"></i> Quick Management Navigation
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <button onclick="switchTab('users')" class="p-4 border rounded-xl hover:bg-slate-50 text-left transition-colors border-slate-200 group">
+                            <div class="font-bold text-sm text-slate-800 group-hover:text-brand-600">ຈັດການ Table Users &rarr;</div>
+                            <div class="text-xs text-slate-500 mt-1">id_user, password, department</div>
+                        </button>
+                        <button onclick="switchTab('evaluatees')" class="p-4 border rounded-xl hover:bg-slate-50 text-left transition-colors border-slate-200 group">
+                            <div class="font-bold text-sm text-slate-800 group-hover:text-brand-600">ຈັດການ Table Evaluatees &rarr;</div>
+                            <div class="text-xs text-slate-500 mt-1">id_evaluatees, name, position...</div>
+                        </button>
+                        <button onclick="switchTab('lists')" class="p-4 border rounded-xl hover:bg-slate-50 text-left transition-colors border-slate-200 group">
+                            <div class="font-bold text-sm text-slate-800 group-hover:text-brand-600">ຈັດການ Table Lists &rarr;</div>
+                            <div class="text-xs text-slate-500 mt-1">id_list, name...</div>
+                        </button>
+                        <button onclick="switchTab('datas')" class="p-4 border rounded-xl hover:bg-slate-50 text-left transition-colors border-slate-200 group">
+                            <div class="font-bold text-sm text-slate-800 group-hover:text-brand-600">ຈັດການ Table Datas &rarr;</div>
+                            <div class="text-xs text-slate-500 mt-1">id_data, references, score...</div>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 2: USERS TABLE MANAGEMENT -->
+            <section id="view-users" class="tab-view hidden space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">ຈັດການ Table Users</h2>
+                        <p class="text-xs text-slate-500">Columns: id_user, password, department, create_at</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                        <!-- Department Filter for Users -->
+                        <div class="relative flex-1 sm:w-48">
+                            <select id="usersDepartmentFilter" onchange="filterUsersTable()" class="w-full pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none cursor-pointer">
+                                <option value="">-- ທຸກພະແນກ (All Depts) --</option>
+                            </select>
+                        </div>
+                        <div class="relative flex-1 sm:w-56">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="usersSearchInput" oninput="filterUsersTable()" placeholder="ຄົ້ນຫາ Users..." 
+                                class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none">
+                        </div>
+                        <button onclick="deleteSelectedRecords('users')" id="btn-delete-selected-users" class="hidden bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-trash"></i> ລົບທີ່ເລືອກ (<span id="count-users">0</span>)
+                        </button>
+                        <button onclick="openFormModal('users')" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i> ເພີ່ມ User
+                        </button>
+                        <button onclick="exportToExcel('users')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-excel"></i> Export Excel
+                        </button>
+                        <label class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-import"></i> Import Excel
+                            <input type="file" accept=".xlsx, .xls, .csv" onchange="importFromExcel(event, 'users')" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Department Member Summary Stats Bar for Users -->
+                <div id="usersDeptSummaryBar" class="flex flex-wrap gap-2"></div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase tracking-wider font-semibold">
+                                <tr>
+                                    <th class="py-3.5 px-4 w-10 text-center">
+                                        <input type="checkbox" id="selectAll-users" onchange="toggleSelectAll('users', this.checked)" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                                    </th>
+                                    <th class="py-3.5 px-4">ID User</th>
+                                    <th class="py-3.5 px-4">Password</th>
+                                    <th class="py-3.5 px-4">Department</th>
+                                    <th class="py-3.5 px-4">Created At</th>
+                                    <th class="py-3.5 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-users" class="divide-y divide-slate-100">
+                                <tr><td colspan="6" class="text-center py-8 text-slate-400">ກຳລັງໂຫລດຂໍ້ມູນ...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 3: EVALUATEES TABLE MANAGEMENT -->
+            <section id="view-evaluatees" class="tab-view hidden space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">ຈັດການ Table Evaluatees</h2>
+                        <p class="text-xs text-slate-500">Columns: id_evaluatee, name, surname, position, department, create_at</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                        <!-- Department Filter for Evaluatees -->
+                        <div class="relative flex-1 sm:w-48">
+                            <select id="evaluateesDepartmentFilter" onchange="filterEvaluateesTable()" class="w-full pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none cursor-pointer">
+                                <option value="">-- ທຸກພະແນກ (All Depts) --</option>
+                            </select>
+                        </div>
+                        <div class="relative flex-1 sm:w-56">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="evaluateesSearchInput" oninput="filterEvaluateesTable()" placeholder="ຄົ້ນຫາ Evaluatees..." 
+                                class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none">
+                        </div>
+                        <button onclick="deleteSelectedRecords('evaluatees')" id="btn-delete-selected-evaluatees" class="hidden bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-trash"></i> ລົບທີ່ເລືອກ (<span id="count-evaluatees">0</span>)
+                        </button>
+                        <button onclick="openFormModal('evaluatees')" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i> ເພີ່ມ Evaluatee
+                        </button>
+                        <button onclick="exportToExcel('evaluatees')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-excel"></i> Export Excel
+                        </button>
+                        <label class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-import"></i> Import Excel
+                            <input type="file" accept=".xlsx, .xls, .csv" onchange="importFromExcel(event, 'evaluatees')" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Department Member Summary Stats Bar for Evaluatees -->
+                <div id="evaluateesDeptSummaryBar" class="flex flex-wrap gap-2"></div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase tracking-wider font-semibold">
+                                <tr>
+                                    <th class="py-3.5 px-4 w-10 text-center">
+                                        <input type="checkbox" id="selectAll-evaluatees" onchange="toggleSelectAll('evaluatees', this.checked)" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                                    </th>
+                                    <th class="py-3.5 px-4">ID Evaluatee</th>
+                                    <th class="py-3.5 px-4">Name</th>
+                                    <th class="py-3.5 px-4">Surname</th>
+                                    <th class="py-3.5 px-4">Position</th>
+                                    <th class="py-3.5 px-4">Department</th>
+                                    <th class="py-3.5 px-4">Created At</th>
+                                    <th class="py-3.5 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-evaluatees" class="divide-y divide-slate-100">
+                                <tr><td colspan="8" class="text-center py-8 text-slate-400">ກຳລັງໂຫລດຂໍ້ມູນ...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 4: LISTS TABLE MANAGEMENT -->
+            <section id="view-lists" class="tab-view hidden space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">ຈັດການ Table Lists</h2>
+                        <p class="text-xs text-slate-500">Columns: id_list, name, create_at</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                        <div class="relative flex-1 sm:w-64">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" oninput="filterTable('lists', this.value)" placeholder="ຄົ້ນຫາ Lists..." 
+                                class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none">
+                        </div>
+                        <button onclick="deleteSelectedRecords('lists')" id="btn-delete-selected-lists" class="hidden bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-trash"></i> ລົບທີ່ເລືອກ (<span id="count-lists">0</span>)
+                        </button>
+                        <button onclick="openFormModal('lists')" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i> ເພີ່ມ List
+                        </button>
+                        <button onclick="exportToExcel('lists')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-excel"></i> Export Excel
+                        </button>
+                        <label class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-import"></i> Import Excel
+                            <input type="file" accept=".xlsx, .xls, .csv" onchange="importFromExcel(event, 'lists')" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase tracking-wider font-semibold">
+                                <tr>
+                                    <th class="py-3.5 px-4 w-10 text-center">
+                                        <input type="checkbox" id="selectAll-lists" onchange="toggleSelectAll('lists', this.checked)" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                                    </th>
+                                    <th class="py-3.5 px-4">ID List</th>
+                                    <th class="py-3.5 px-4">List Name</th>
+                                    <th class="py-3.5 px-4">Created At</th>
+                                    <th class="py-3.5 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-lists" class="divide-y divide-slate-100">
+                                <tr><td colspan="5" class="text-center py-8 text-slate-400">ກຳລັງໂຫລດຂໍ້ມູນ...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 5: DATAS TABLE MANAGEMENT -->
+            <section id="view-datas" class="tab-view hidden space-y-4">
+                <div id="evaluationStatusBanner" class="p-4 rounded-2xl border shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3 transition-all">
+                    <div class="flex items-center gap-3">
+                        <div id="statusIconBg" class="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold">
+                            <i id="statusIcon" class="fa-solid fa-circle-notch fa-spin"></i>
+                        </div>
+                        <div>
+                            <h3 id="statusTitle" class="font-bold text-sm text-slate-800">ກຳລັງກວດສອບສະຖານະການປະເມິນ...</h3>
+                            <p id="statusSubtitle" class="text-xs text-slate-500">ກຳລັງຄິດໄລ່ສັດສ່ວນຜູ້ຖືກປະເມິນ</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openStatusInspectModal()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-medium transition-all shadow-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-list-check text-amber-400"></i> ກວດສອບສະຖານະ Matrix
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">ຈັດການ Table Datas (Evaluation Results)</h2>
+                        <p class="text-xs text-slate-500">Columns: id_data, id_user (FK), id_evaluatee (FK), time_add, model_add, score, comment</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                        <div class="relative flex-1 sm:w-48">
+                            <select id="datasDepartmentFilter" onchange="filterDatasByDepartment(this.value)" class="w-full pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none cursor-pointer">
+                                <option value="">-- ທຸກພະແນກ (All Depts) --</option>
+                            </select>
+                        </div>
+                        <div class="relative flex-1 sm:w-56">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="datasSearchInput" oninput="filterDatasTable()" placeholder="ຄົ້ນຫາ Datas..." 
+                                class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none">
+                        </div>
+                        <button onclick="deleteSelectedRecords('datas')" id="btn-delete-selected-datas" class="hidden bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-trash"></i> ລົບທີ່ເລືອກ (<span id="count-datas">0</span>)
+                        </button>
+                        <button onclick="exportToExcel('datas')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-excel"></i> Export Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase tracking-wider font-semibold">
+                                <tr>
+                                    <th class="py-3.5 px-4 w-10 text-center">
+                                        <input type="checkbox" id="selectAll-datas" onchange="toggleSelectAll('datas', this.checked)" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                                    </th>
+                                    <th class="py-3.5 px-4">ID Data</th>
+                                    <th class="py-3.5 px-4">ID User (FK)</th>
+                                    <th class="py-3.5 px-4">ID Evaluatee (FK)</th>
+                                    <th class="py-3.5 px-4">Department</th>
+                                    <th class="py-3.5 px-4">Time Add</th>
+                                    <th class="py-3.5 px-4">Model Add</th>
+                                    <th class="py-3.5 px-4">Score</th>
+                                    <th class="py-3.5 px-4">Status</th>
+                                    <th class="py-3.5 px-4">Comment</th>
+                                    <th class="py-3.5 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-datas" class="divide-y divide-slate-100">
+                                <tr><td colspan="11" class="text-center py-8 text-slate-400">ກຳລັງໂຫລດຂໍ້ມູນ...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 6: ADMIN TABLE MANAGEMENT -->
+            <section id="view-admin" class="tab-view hidden space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">ຈັດການ Table Admin</h2>
+                        <p class="text-xs text-slate-500">Columns: admin_id, password, created_at</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                        <div class="relative flex-1 sm:w-64">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" oninput="filterTable('admin', this.value)" placeholder="ຄົ້ນຫາ Admin..." 
+                                class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none">
+                        </div>
+                        <button onclick="deleteSelectedRecords('admin')" id="btn-delete-selected-admin" class="hidden bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-trash"></i> ລົບທີ່ເລືອກ (<span id="count-admin">0</span>)
+                        </button>
+                        <button onclick="openFormModal('admin')" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i> ເພີ່ມ Admin
+                        </button>
+                        <button onclick="exportToExcel('admin')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-excel"></i> Export Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase tracking-wider font-semibold">
+                                <tr>
+                                    <th class="py-3.5 px-4 w-10 text-center">
+                                        <input type="checkbox" id="selectAll-admin" onchange="toggleSelectAll('admin', this.checked)" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                                    </th>
+                                    <th class="py-3.5 px-4">Admin ID</th>
+                                    <th class="py-3.5 px-4">Password</th>
+                                    <th class="py-3.5 px-4">Created At</th>
+                                    <th class="py-3.5 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-admin" class="divide-y divide-slate-100">
+                                <tr><td colspan="5" class="text-center py-8 text-slate-400">ກຳລັງໂຫລດຂໍ້ມູນ...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const SUPABASE_URL = 'https://ulzjumjaltrztorjwtgw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsemp1bWphbHRyenRvcmp3dGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMxNDcyMDcsImV4cCI6MjEwODcyMzIwN30.19fLMf6fZ_R1QozOMi6nI_24Kiew_gqzM4RxK9wKB8M';
+        
+        let supabaseClient = null;
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            console.error('Supabase init failed:', e);
+        }
+
+        const state = {
+            currentTab: 'dashboard',
+            loggedInAdmin: null,
+            adminUnlocked: false,
+            selectedRows: {
+                admin: new Set(),
+                users: new Set(),
+                evaluatees: new Set(),
+                lists: new Set(),
+                datas: new Set()
+            },
+            dataCache: {
+                admin: [],
+                users: [],
+                evaluatees: [],
+                lists: [],
+                datas: []
+            },
+            currentDatasDeptFilter: '',
+            currentUsersDeptFilter: '',
+            currentEvaluateesDeptFilter: '',
+            inspectModalActiveTab: 'missing',
+            realtimeChannels: [],
+            pollingInterval: null
+        };
+
+        function getFormattedCurrentDateTime() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+        }
+
+        function parseToDateObj(val) {
+            if (!val && val !== 0) return null;
+            if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+            if (typeof val === 'number') {
+                const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+                return isNaN(date.getTime()) ? null : date;
+            }
+            let strVal = String(val).trim();
+            if (!strVal) return null;
+            strVal = strVal.replace(/^['"]|['"]$/g, '');
+            let d = new Date(strVal);
+            if (!isNaN(d.getTime())) return d;
+            return null;
+        }
+
+        function formatToFormattedDateTime(val) {
+            if (!val && val !== 0) return '-';
+            const dateObj = parseToDateObj(val);
+            if (!dateObj) return String(val).trim() || '-';
+            const yyyy = dateObj.getFullYear();
+            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const dd = String(dateObj.getDate()).padStart(2, '0');
+            const hh = String(dateObj.getHours()).padStart(2, '0');
+            const min = String(dateObj.getMinutes()).padStart(2, '0');
+            const ss = String(dateObj.getSeconds()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+        }
+
+        function formatDateDisplay(dateValue) {
+            if (!dateValue && dateValue !== 0) return '-';
+            return formatToFormattedDateTime(dateValue);
+        }
+
+        function getDepartmentForDataRecord(dataItem) {
+            if (dataItem.department) return dataItem.department;
+            if (dataItem.id_evaluatee && state.dataCache.evaluatees.length > 0) {
+                const evalItem = state.dataCache.evaluatees.find(e => 
+                    String(e.id_evaluatee || e.id_evaluatees || e.id_evaluate) === String(dataItem.id_evaluatee)
+                );
+                if (evalItem && evalItem.department) return evalItem.department;
+            }
+            if (dataItem.id_user && state.dataCache.users.length > 0) {
+                const userItem = state.dataCache.users.find(u => String(u.id_user) === String(dataItem.id_user));
+                if (userItem && userItem.department) return userItem.department;
+            }
+            return '-';
+        }
+
+        // --- POPULATE DEPARTMENT DROPDOWNS & SUMMARY CARDS ---
+        function populateDepartmentDropdowns() {
+            const datasSelect = document.getElementById('datasDepartmentFilter');
+            const usersSelect = document.getElementById('usersDepartmentFilter');
+            const evaluateesSelect = document.getElementById('evaluateesDepartmentFilter');
+
+            const depts = new Set();
+            state.dataCache.evaluatees.forEach(e => { if (e.department) depts.add(e.department); });
+            state.dataCache.users.forEach(u => { if (u.department) depts.add(u.department); });
+            state.dataCache.datas.forEach(d => {
+                const dept = getDepartmentForDataRecord(d);
+                if (dept && dept !== '-') depts.add(dept);
+            });
+
+            const sortedDepts = Array.from(depts).sort();
+
+            [datasSelect, usersSelect, evaluateesSelect].forEach(selectEl => {
+                if (selectEl) {
+                    const currentVal = selectEl.value;
+                    selectEl.innerHTML = '<option value="">-- ທຸກພະແນກ (All Depts) --</option>';
+                    sortedDepts.forEach(dept => {
+                        const opt = document.createElement('option');
+                        opt.value = dept;
+                        opt.textContent = `ພະແນກ: ${dept}`;
+                        if (dept === currentVal) opt.selected = true;
+                        selectEl.appendChild(opt);
+                    });
+                }
+            });
+
+            renderDepartmentMemberSummaryCards('users');
+            renderDepartmentMemberSummaryCards('evaluatees');
+        }
+
+        function renderDepartmentMemberSummaryCards(tableName) {
+            const container = document.getElementById(`${tableName}DeptSummaryBar`);
+            if (!container) return;
+
+            const items = state.dataCache[tableName] || [];
+            const deptCounts = {};
+
+            items.forEach(item => {
+                const dept = item.department || 'ບໍ່ລະບຸພະແນກ';
+                deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+            });
+
+            const currentFilter = tableName === 'users' ? state.currentUsersDeptFilter : state.currentEvaluateesDeptFilter;
+
+            let html = `
+                <button onclick="setDepartmentFilter('${tableName}', '')" class="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${!currentFilter ? 'bg-brand-600 text-white border-brand-600 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">
+                    ທັງໝົດ (${items.length} ຄົນ)
+                </button>
+            `;
+
+            for (const [dept, count] of Object.entries(deptCounts)) {
+                const isSelected = currentFilter === dept;
+                html += `
+                    <button onclick="setDepartmentFilter('${tableName}', '${dept}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 ${isSelected ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">
+                        <span><i class="fa-solid fa-building text-[10px]"></i> ${dept}</span>
+                        <span class="px-1.5 py-0.5 rounded-full text-[10px] ${isSelected ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600'}">${count} ຄົນ</span>
+                    </button>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function setDepartmentFilter(tableName, deptValue) {
+            if (tableName === 'users') {
+                state.currentUsersDeptFilter = deptValue;
+                const select = document.getElementById('usersDepartmentFilter');
+                if (select) select.value = deptValue;
+                filterUsersTable();
+            } else if (tableName === 'evaluatees') {
+                state.currentEvaluateesDeptFilter = deptValue;
+                const select = document.getElementById('evaluateesDepartmentFilter');
+                if (select) select.value = deptValue;
+                filterEvaluateesTable();
+            }
+        }
+
+        function filterUsersTable() {
+            const deptFilter = document.getElementById('usersDepartmentFilter')?.value || state.currentUsersDeptFilter;
+            state.currentUsersDeptFilter = deptFilter;
+            const searchInput = document.getElementById('usersSearchInput');
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+            const filtered = state.dataCache.users.filter(item => {
+                if (deptFilter && item.department !== deptFilter) return false;
+                if (!query) return true;
+                return Object.values(item).some(val => val !== null && val !== undefined && String(val).toLowerCase().includes(query));
+            });
+
+            renderTable('users', filtered);
+            renderDepartmentMemberSummaryCards('users');
+        }
+
+        function filterEvaluateesTable() {
+            const deptFilter = document.getElementById('evaluateesDepartmentFilter')?.value || state.currentEvaluateesDeptFilter;
+            state.currentEvaluateesDeptFilter = deptFilter;
+            const searchInput = document.getElementById('evaluateesSearchInput');
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+            const filtered = state.dataCache.evaluatees.filter(item => {
+                if (deptFilter && item.department !== deptFilter) return false;
+                if (!query) return true;
+                return Object.values(item).some(val => val !== null && val !== undefined && String(val).toLowerCase().includes(query));
+            });
+
+            renderTable('evaluatees', filtered);
+            renderDepartmentMemberSummaryCards('evaluatees');
+        }
+
+        function filterDatasByDepartment(deptValue) {
+            state.currentDatasDeptFilter = deptValue;
+            filterDatasTable();
+        }
+
+        function filterDatasTable() {
+            const searchInput = document.getElementById('datasSearchInput');
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const deptFilter = state.currentDatasDeptFilter;
+            const originalData = state.dataCache.datas || [];
+
+            const filtered = originalData.filter(item => {
+                const itemDept = getDepartmentForDataRecord(item);
+                if (deptFilter && itemDept !== deptFilter) return false;
+                if (!query) return true;
+                return Object.values(item).some(val => {
+                    if (val === null || val === undefined) return false;
+                    return String(val).toLowerCase().includes(query);
+                }) || itemDept.toLowerCase().includes(query);
+            });
+
+            renderTable('datas', filtered);
+            updateEvaluationStatusSummary();
+        }
+
+        // --- ENHANCED CROSS-EVALUATION MATRIX TRACKER ---
+        function getMatrixEvaluationData() {
+            const selectedDept = state.currentDatasDeptFilter;
+            
+            let users = state.dataCache.users || [];
+            let evaluatees = state.dataCache.evaluatees || [];
+
+            if (selectedDept) {
+                users = users.filter(u => u.department === selectedDept);
+                evaluatees = evaluatees.filter(e => e.department === selectedDept);
+            }
+
+            const evalDataMap = new Map();
+            (state.dataCache.datas || []).forEach(d => {
+                if (d.id_user && d.id_evaluatee) {
+                    const key = `${String(d.id_user)}|${String(d.id_evaluatee)}`;
+                    evalDataMap.set(key, d);
+                }
+            });
+
+            const missingPairs = [];
+            const completedPairs = [];
+
+            users.forEach(u => {
+                evaluatees.forEach(e => {
+                    const eId = e.id_evaluatee || e.id_evaluatees || e.id_evaluate;
+                    const key = `${String(u.id_user)}|${String(eId)}`;
+                    if (evalDataMap.has(key)) {
+                        completedPairs.push({ user: u, evaluatee: e, data: evalDataMap.get(key) });
+                    } else {
+                        missingPairs.push({ user: u, evaluatee: e });
+                    }
+                });
+            });
+
+            const totalRequiredPairs = users.length * evaluatees.length;
+
+            return {
+                selectedDept,
+                users,
+                evaluatees,
+                totalRequiredPairs,
+                completedPairs,
+                missingPairs,
+                evalDataMap
+            };
+        }
+
+        function updateEvaluationStatusSummary() {
+            const banner = document.getElementById('evaluationStatusBanner');
+            if (!banner) return;
+            const iconBg = document.getElementById('statusIconBg');
+            const icon = document.getElementById('statusIcon');
+            const title = document.getElementById('statusTitle');
+            const subtitle = document.getElementById('statusSubtitle');
+
+            const { selectedDept, users, evaluatees, totalRequiredPairs, completedPairs, missingPairs } = getMatrixEvaluationData();
+
+            if (users.length === 0 || evaluatees.length === 0) {
+                banner.className = "p-4 rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3";
+                iconBg.className = "w-10 h-10 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center font-bold";
+                icon.className = "fa-solid fa-info-circle";
+                title.innerText = "ບໍ່ມີຂໍ້ມູນ User ຫຼື Evaluatee ໃນລະບົບ";
+                subtitle.innerText = selectedDept ? `ບໍ່ພົບຂໍ້ມູນພະນັກງານໃນພະແນກ: ${selectedDept}` : "ກະລຸນາເພີ່ມ Users ແລະ Evaluatees ໃນ Tab ທີ່ກ່ຽວຂ້ອງ";
+                return;
+            }
+
+            const missingCount = missingPairs.length;
+            const completedCount = completedPairs.length;
+
+            if (missingCount === 0) {
+                banner.className = "p-4 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3";
+                iconBg.className = "w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-500/20";
+                icon.className = "fa-solid fa-circle-check";
+                title.innerText = "ການປະເມິນສຳເລັດຄົບຖ້ວນທຸກຄົນແລ້ວ! (100% Completed)";
+                subtitle.innerText = `1 User/ID ໄດ້ປະເມິນຄົບທຸກຄົນໃນພະແນກແລ້ວ (${completedCount}/${totalRequiredPairs} ຮອບ)` + (selectedDept ? ` [ພະແນກ: ${selectedDept}]` : "");
+            } else {
+                banner.className = "p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-900 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3";
+                iconBg.className = "w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-md shadow-amber-500/20";
+                icon.className = "fa-solid fa-triangle-exclamation";
+                title.innerText = `ຍັງບໍ່ທັນສຳເລັດ! ຍັງເຫຼືອອີກ ${missingCount} ຮອບປະເມິນ ທີ່ຍັງບໍ່ທັນໄດ້ປະເມິນ`;
+                subtitle.innerText = `ປະເມິນແລ້ວ ${completedCount} / ${totalRequiredPairs} ຮອບ (${users.length} Users × ${evaluatees.length} Evaluatees)` + (selectedDept ? ` [ພະແນກ: ${selectedDept}]` : "");
+            }
+        }
+
+        function openStatusInspectModal() {
+            const userSelect = document.getElementById('inspectUserFilter');
+            const evalSelect = document.getElementById('inspectEvaluateeFilter');
+            const selectedDept = state.currentDatasDeptFilter;
+
+            let users = state.dataCache.users || [];
+            let evaluatees = state.dataCache.evaluatees || [];
+            if (selectedDept) {
+                users = users.filter(u => u.department === selectedDept);
+                evaluatees = evaluatees.filter(e => e.department === selectedDept);
+            }
+
+            if (userSelect) {
+                userSelect.innerHTML = '<option value="">-- ທຸກ User ID --</option>' + 
+                    users.map(u => `<option value="${u.id_user}">User ID: ${u.id_user}</option>`).join('');
+            }
+            if (evalSelect) {
+                evalSelect.innerHTML = '<option value="">-- ທຸກ Evaluatee ID --</option>' + 
+                    evaluatees.map(e => {
+                        const eId = e.id_evaluatee || e.id_evaluatees || e.id_evaluate;
+                        return `<option value="${eId}">Eval ID: ${eId} (${e.name || ''})</option>`;
+                    }).join('');
+            }
+
+            renderStatusInspectModal();
+            toggleModal('statusInspectModal');
+        }
+
+        function switchInspectModalTab(tabType) {
+            state.inspectModalActiveTab = tabType;
+            const tabMissing = document.getElementById('inspectTabMissing');
+            const tabMatrix = document.getElementById('inspectTabMatrix');
+            if (tabType === 'missing') {
+                tabMissing.className = "py-2 border-b-2 border-amber-500 text-amber-600 font-semibold";
+                tabMatrix.className = "py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600 font-semibold";
+            } else {
+                tabMatrix.className = "py-2 border-b-2 border-indigo-500 text-indigo-600 font-semibold";
+                tabMissing.className = "py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600 font-semibold";
+            }
+            renderStatusInspectModal();
+        }
+
+        function renderStatusInspectModal() {
+            const matrixData = getMatrixEvaluationData();
+            let { users, evaluatees, totalRequiredPairs, completedPairs, missingPairs, evalDataMap } = matrixData;
+
+            const searchQuery = (document.getElementById('inspectSearchInput')?.value || '').toLowerCase().trim();
+            const filterUser = document.getElementById('inspectUserFilter')?.value || '';
+            const filterEval = document.getElementById('inspectEvaluateeFilter')?.value || '';
+
+            if (filterUser) users = users.filter(u => String(u.id_user) === filterUser);
+            if (filterEval) evaluatees = evaluatees.filter(e => String(e.id_evaluatee || e.id_evaluatees || e.id_evaluate) === filterEval);
+
+            let filteredMissingPairs = missingPairs.filter(m => {
+                const uId = String(m.user.id_user);
+                const eId = String(m.evaluatee.id_evaluatee || m.evaluatee.id_evaluatees || m.evaluatee.id_evaluate);
+                const eName = String(m.evaluatee.name || '');
+                const eSurname = String(m.evaluatee.surname || '');
+
+                if (filterUser && uId !== filterUser) return false;
+                if (filterEval && eId !== filterEval) return false;
+
+                if (!searchQuery) return true;
+                return uId.toLowerCase().includes(searchQuery) || 
+                       eId.toLowerCase().includes(searchQuery) || 
+                       eName.toLowerCase().includes(searchQuery) || 
+                       eSurname.toLowerCase().includes(searchQuery);
+            });
+
+            document.getElementById('inspectUserCount').innerText = users.length;
+            document.getElementById('inspectEvaluateeCount').innerText = evaluatees.length;
+            document.getElementById('inspectCompletedPairs').innerText = completedPairs.length;
+            document.getElementById('inspectMissingPairs').innerText = missingPairs.length;
+            
+            const percent = totalRequiredPairs > 0 ? Math.round((completedPairs.length / totalRequiredPairs) * 100) : 0;
+            document.getElementById('inspectPercentText').innerText = `${percent}%`;
+            document.getElementById('inspectProgressBar').style.width = `${percent}%`;
+            document.getElementById('tabMissingBadge').innerText = filteredMissingPairs.length;
+
+            const container = document.getElementById('inspectListContainer');
+            if (!container) return;
+
+            if (state.inspectModalActiveTab === 'missing') {
+                if (filteredMissingPairs.length === 0) {
+                    container.innerHTML = `<div class="p-8 text-center text-emerald-600 font-bold bg-emerald-50 rounded-2xl border border-emerald-200"><i class="fa-solid fa-circle-check text-2xl mb-2 block"></i> ບໍ່ພົບລາຍການຕົກຫຼົ່ນ (ຫຼື ຄົ້ນຫາບໍ່ພົບ)</div>`;
+                    return;
+                }
+
+                container.innerHTML = filteredMissingPairs.map(m => {
+                    const eId = m.evaluatee.id_evaluatee || m.evaluatee.id_evaluatees || m.evaluatee.id_evaluate || '-';
+                    return `
+                        <div class="p-3 bg-amber-50/80 border border-amber-200/90 rounded-xl flex items-center justify-between text-xs">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 bg-amber-100 text-amber-700 rounded-lg flex items-center justify-center font-bold text-xs">
+                                    <i class="fa-solid fa-user-xmark"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-800">
+                                        User ID: <span class="text-blue-600 font-mono bg-blue-50 px-1.5 py-0.5 rounded">${m.user.id_user}</span> 
+                                        <i class="fa-solid fa-arrow-right text-[10px] text-slate-400 mx-1"></i> 
+                                        ຍັງບໍ່ທັນປະເມິນ: <span class="text-emerald-700 font-semibold">${m.evaluatee.name || ''} ${m.evaluatee.surname || ''}</span> 
+                                        <span class="text-slate-500 font-mono text-[10px] bg-slate-100 px-1 rounded">(ID: ${eId})</span>
+                                    </div>
+                                    <span class="text-[10px] text-slate-500 block mt-0.5">ພະແນກ: ${m.user.department || m.evaluatee.department || '-'}</span>
+                                </div>
+                            </div>
+                            <span class="bg-amber-200 text-amber-900 font-bold px-2.5 py-1 rounded-lg text-[10px]">ຍັງຄົງຄ້າງ</span>
+                        </div>
+                    `;
+                }).join('');
+            } else if (state.inspectModalActiveTab === 'matrix') {
+                if (users.length === 0 || evaluatees.length === 0) {
+                    container.innerHTML = `<div class="p-6 text-center text-xs text-slate-400">ບໍ່ມີຂໍ້ມູນພຽງພໍທີ່ຈະສະແດງ Matrix</div>`;
+                    return;
+                }
+
+                let tableHtml = `
+                    <div class="overflow-x-auto border rounded-xl">
+                        <table class="w-full text-left text-[11px] border-collapse">
+                            <thead class="bg-slate-100 text-slate-700 font-bold">
+                                <tr>
+                                    <th class="p-2.5 border">User ID \ Evaluatee ID</th>
+                                    ${evaluatees.map(e => `<th class="p-2.5 border text-center font-mono">${e.id_evaluatee || e.id_evaluatees || e.id_evaluate}<br><span class="font-normal text-[10px] text-slate-500">${e.name || ''}</span></th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                users.forEach(u => {
+                    tableHtml += `<tr><td class="p-2.5 border font-semibold bg-slate-50 text-blue-700 font-mono">${u.id_user}</td>`;
+                    evaluatees.forEach(e => {
+                        const eId = e.id_evaluatee || e.id_evaluatees || e.id_evaluate;
+                        const key = `${String(u.id_user)}|${String(eId)}`;
+                        const isDone = evalDataMap.has(key);
+                        if (isDone) {
+                            const rec = evalDataMap.get(key);
+                            tableHtml += `<td class="p-2 border text-center bg-emerald-50 text-emerald-700 font-bold" title="Score: ${rec.score ?? 0}"><i class="fa-solid fa-circle-check text-base"></i></td>`;
+                        } else {
+                            tableHtml += `<td class="p-2 border text-center bg-red-50 text-red-500 font-bold" title="ຍັງບໍ່ໄດ້ປະເມິນ"><i class="fa-solid fa-circle-xmark text-base"></i></td>`;
+                        }
+                    });
+                    tableHtml += `</tr>`;
+                });
+
+                tableHtml += `</tbody></table></div>`;
+                container.innerHTML = tableHtml;
+            }
+        }
+
+        // --- BATCH SELECTION & DELETE ---
+        function toggleSelectAll(tableName, isChecked) {
+            const checkboxes = document.querySelectorAll(`.row-checkbox-${tableName}`);
+            checkboxes.forEach(cb => {
+                cb.checked = isChecked;
+                if (isChecked) state.selectedRows[tableName].add(cb.value);
+                else state.selectedRows[tableName].delete(cb.value);
+            });
+            updateDeleteSelectedButton(tableName);
+        }
+
+        function handleRowCheckboxChange(tableName, value, isChecked) {
+            if (isChecked) state.selectedRows[tableName].add(value);
+            else state.selectedRows[tableName].delete(value);
+            const selectAllCb = document.getElementById(`selectAll-${tableName}`);
+            const checkboxes = document.querySelectorAll(`.row-checkbox-${tableName}`);
+            if (selectAllCb) selectAllCb.checked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+            updateDeleteSelectedButton(tableName);
+        }
+
+        function updateDeleteSelectedButton(tableName) {
+            const selectedCount = state.selectedRows[tableName].size;
+            const btn = document.getElementById(`btn-delete-selected-${tableName}`);
+            const countSpan = document.getElementById(`count-${tableName}`);
+            if (btn && countSpan) {
+                countSpan.innerText = selectedCount;
+                if (selectedCount > 0) btn.classList.remove('hidden');
+                else btn.classList.add('hidden');
+            }
+        }
+
+        function deleteSelectedRecords(tableName) {
+            const selectedIds = Array.from(state.selectedRows[tableName]);
+            if (selectedIds.length === 0) return;
+            const pkCol = getPrimaryKeyName(tableName);
+
+            showConfirmModal({
+                title: 'ຢືນຢັນການລົບຫຼາຍລາຍການ',
+                message: `ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລົບ ${selectedIds.length} ລາຍການທີ່ເລືອກໄວ້ ຈາກ Table ${tableName}?`,
+                onConfirm: async () => {
+                    try {
+                        const { error } = await supabaseClient.from(tableName).delete().in(pkCol, selectedIds);
+                        if (error) showToast('ລົບຂໍ້ມູນບໍ່ສຳເລັດ: ' + error.message, 'error');
+                        else {
+                            showToast(`ລົບຂໍ້ມູນ ${selectedIds.length} ລາຍການສຳເລັດ!`, 'success');
+                            state.selectedRows[tableName].clear();
+                            const selectAllCb = document.getElementById(`selectAll-${tableName}`);
+                            if (selectAllCb) selectAllCb.checked = false;
+                            updateDeleteSelectedButton(tableName);
+                            fetchTableData(tableName);
+                        }
+                    } catch (err) { showToast('Delete error occurred', 'error'); }
+                }
+            });
+        }
+
+        function filterTable(tableName, query) {
+            if (tableName === 'users') {
+                filterUsersTable();
+                return;
+            }
+            if (tableName === 'evaluatees') {
+                filterEvaluateesTable();
+                return;
+            }
+            if (tableName === 'datas') {
+                filterDatasTable();
+                return;
+            }
+            const searchTerm = query.toLowerCase().trim();
+            const originalData = state.dataCache[tableName] || [];
+            if (!searchTerm) {
+                renderTable(tableName, originalData);
+                return;
+            }
+            const filtered = originalData.filter(item => Object.values(item).some(val => val !== null && val !== undefined && String(val).toLowerCase().includes(searchTerm)));
+            renderTable(tableName, filtered);
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColors = { success: 'bg-emerald-600 text-white', error: 'bg-red-600 text-white', info: 'bg-slate-800 text-white', warning: 'bg-amber-500 text-white' };
+            const icons = { success: 'fa-circle-check', error: 'fa-circle-exclamation', info: 'fa-circle-info', warning: 'fa-triangle-exclamation' };
+            toast.className = `p-4 rounded-xl shadow-xl flex items-center justify-between gap-3 text-xs font-medium transform transition-all duration-300 pointer-events-auto ${bgColors[type] || bgColors.info}`;
+            toast.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid ${icons[type] || icons.info} text-base"></i><span>${message}</span></div><button onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add('opacity-0', 'scale-95'); setTimeout(() => toast.remove(), 300); }, 3500);
+        }
+
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.toggle('hidden');
+        }
+
+        function requestAdminTabAccess() {
+            if (state.adminUnlocked) switchTab('admin');
+            else {
+                document.getElementById('adminPinInput').value = '';
+                toggleModal('adminPinModal');
+            }
+        }
+
+        function verifyAdminPin(e) {
+            e.preventDefault();
+            const enteredPin = document.getElementById('adminPinInput').value;
+            if (enteredPin === '12345678ljats$$$') {
+                state.adminUnlocked = true;
+                toggleModal('adminPinModal');
+                showToast('ໃສ່ລະຫັດຖືກຕ້ອງ! ເຂົ້າສູ່ໜ້າ Tab Admin ສຳເລັດ', 'success');
+                switchTab('admin');
+            } else {
+                showToast('ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', 'error');
+                document.getElementById('adminPinInput').value = '';
+            }
+        }
+
+        function showConfirmModal({ title = 'ຢືນຢັນ', message = 'ທ່ານແນ່ໃຈບໍ່?', onConfirm = () => {} }) {
+            const modal = document.getElementById('confirmModal');
+            document.getElementById('confirmModalTitle').innerText = title;
+            document.getElementById('confirmModalMessage').innerText = message;
+            const okBtn = document.getElementById('confirmOkBtn');
+            const cancelBtn = document.getElementById('confirmCancelBtn');
+            const newOkBtn = okBtn.cloneNode(true);
+            const newCancelBtn = cancelBtn.cloneNode(true);
+            okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+            cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+            newOkBtn.addEventListener('click', () => { toggleModal('confirmModal'); onConfirm(); });
+            newCancelBtn.addEventListener('click', () => { toggleModal('confirmModal'); });
+            toggleModal('confirmModal');
+        }
+
+        function copySqlCode() {
+            const sqlText = document.getElementById('sqlCode').innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = sqlText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('ກັອບປີ້ SQL Code & RLS Policies ສຳເລັດ!', 'success');
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const adminId = document.getElementById('loginAdminId').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const rememberMe = document.getElementById('rememberMe').checked;
+
+            if (!adminId || !password) {
+                showToast('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ', 'warning');
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient.from('admin').select('*').eq('admin_id', adminId).eq('password', password).maybeSingle();
+                if (error) { showToast('ເກີດຂໍ້ຜິດພາດ: ' + error.message, 'error'); return; }
+                if (data) {
+                    state.loggedInAdmin = data;
+                    const sessionData = { admin: data, expiresAt: Date.now() + (rememberMe ? 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000) };
+                    if (rememberMe) localStorage.setItem('eval_admin_session', JSON.stringify(sessionData));
+                    else sessionStorage.setItem('eval_admin_session', JSON.stringify(sessionData));
+
+                    document.getElementById('currentAdminDisplay').innerText = data.admin_id;
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('mainDashboard').classList.remove('hidden');
+                    showToast(`ເຂົ້າສູ່ລະບົບສຳເລັດ! ຍິນດີຕ້ອນຮັບ ${data.admin_id}`, 'success');
+                    refreshAllTables();
+                    setupRealtimeSubscriptions();
+                } else {
+                    showToast('รหัสพนักงาน หรือ รหัสผ่าน ไม่ถูกต้อง', 'error');
+                }
+            } catch (err) { showToast('ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບ Supabase ໄດ້', 'error'); }
+        }
+
+        function checkExistingSession() {
+            try {
+                let sessionRaw = localStorage.getItem('eval_admin_session') || sessionStorage.getItem('eval_admin_session');
+                if (!sessionRaw) return;
+                const session = JSON.parse(sessionRaw);
+                if (session && session.expiresAt > Date.now()) {
+                    state.loggedInAdmin = session.admin;
+                    document.getElementById('currentAdminDisplay').innerText = session.admin.admin_id;
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('mainDashboard').classList.remove('hidden');
+                    refreshAllTables();
+                    setupRealtimeSubscriptions();
+                } else {
+                    localStorage.removeItem('eval_admin_session');
+                    sessionStorage.removeItem('eval_admin_session');
+                }
+            } catch (e) { console.error("Error reading session", e); }
+        }
+
+        function handleLogout() {
+            state.loggedInAdmin = null;
+            state.adminUnlocked = false;
+            if (state.realtimeChannels.length > 0) {
+                state.realtimeChannels.forEach(ch => supabaseClient.removeChannel(ch));
+                state.realtimeChannels = [];
+            }
+            if (state.pollingInterval) clearInterval(state.pollingInterval);
+
+            localStorage.removeItem('eval_admin_session');
+            sessionStorage.removeItem('eval_admin_session');
+            document.getElementById('mainDashboard').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('loginPassword').value = '';
+            showToast('ອອກຈາກລະບົບเรียบร้อย', 'info');
+        }
+
+        function switchTab(tabName) {
+            state.currentTab = tabName;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-700/50';
+            });
+            const activeBtn = document.getElementById(`tab-${tabName}`);
+            if (activeBtn) activeBtn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 bg-brand-600 text-white shadow-md';
+
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            const activeView = document.getElementById(`view-${tabName}`);
+            if (activeView) activeView.classList.remove('hidden');
+
+            if (tabName !== 'dashboard') fetchTableData(tabName);
+            else updateDashboardStats();
+        }
+
+        // --- SILENT AUTO-UPDATE & REALTIME SUBSCRIPTIONS ---
+        async function silentFetchTableData(tableName) {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient.from(tableName).select('*');
+            if (error) return;
+
+            state.dataCache[tableName] = data || [];
+
+            if (tableName === 'users') {
+                populateDepartmentDropdowns();
+                filterUsersTable();
+            } else if (tableName === 'evaluatees') {
+                populateDepartmentDropdowns();
+                filterEvaluateesTable();
+            } else if (tableName === 'datas') {
+                populateDepartmentDropdowns();
+                filterDatasTable();
+            } else {
+                renderTable(tableName, data);
+            }
+
+            updateDashboardStats();
+            updateEvaluationStatusSummary();
+
+            const statusModal = document.getElementById('statusInspectModal');
+            if (statusModal && !statusModal.classList.contains('hidden')) {
+                renderStatusInspectModal();
+            }
+        }
+
+        function setupRealtimeSubscriptions() {
+            if (!supabaseClient) return;
+
+            if (state.realtimeChannels.length > 0) {
+                state.realtimeChannels.forEach(ch => supabaseClient.removeChannel(ch));
+                state.realtimeChannels = [];
+            }
+
+            const tables = ['admin', 'users', 'evaluatees', 'lists', 'datas'];
+            tables.forEach(tableName => {
+                const channel = supabaseClient
+                    .channel(`public:${tableName}`)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, () => {
+                        silentFetchTableData(tableName);
+                    })
+                    .subscribe();
+                state.realtimeChannels.push(channel);
+            });
+
+            if (state.pollingInterval) clearInterval(state.pollingInterval);
+            state.pollingInterval = setInterval(() => {
+                tables.forEach(t => silentFetchTableData(t));
+            }, 15000);
+        }
+
+        async function fetchTableData(tableName) {
+            const tbody = document.getElementById(`table-body-${tableName}`);
+            if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>ກຳລັງໂຫລດ...</td></tr>`;
+
+            const { data, error } = await supabaseClient.from(tableName).select('*');
+            if (error) {
+                showToast(`Fetch error (${tableName}): ` + error.message, 'error');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-red-500">Error loading data</td></tr>`;
+                return;
+            }
+
+            state.dataCache[tableName] = data || [];
+
+            if (tableName === 'users') {
+                populateDepartmentDropdowns();
+                filterUsersTable();
+            } else if (tableName === 'evaluatees') {
+                populateDepartmentDropdowns();
+                filterEvaluateesTable();
+            } else if (tableName === 'datas') {
+                populateDepartmentDropdowns();
+                filterDatasTable();
+            } else {
+                renderTable(tableName, data);
+            }
+
+            updateDashboardStats();
+            if (tableName === 'evaluatees' || tableName === 'datas' || tableName === 'users') {
+                updateEvaluationStatusSummary();
+            }
+        }
+
+        async function refreshAllTables() {
+            const tables = ['admin', 'users', 'evaluatees', 'lists', 'datas'];
+            for (const t of tables) {
+                await fetchTableData(t);
+            }
+            populateDepartmentDropdowns();
+            updateEvaluationStatusSummary();
+        }
+
+        function updateDashboardStats() {
+            document.getElementById('statUsers').innerText = state.dataCache.users.length;
+            document.getElementById('statEvaluatees').innerText = state.dataCache.evaluatees.length;
+            document.getElementById('statLists').innerText = state.dataCache.lists.length;
+            document.getElementById('statDatas').innerText = state.dataCache.datas.length;
+        }
+
+        function renderTable(tableName, items) {
+            const tbody = document.getElementById(`table-body-${tableName}`);
+            if (!tbody) return;
+
+            const selectedSet = state.selectedRows[tableName];
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-400">ບໍ່ມີຂໍ້ມູນໃນລະບົບ</td></tr>`;
+                updateDeleteSelectedButton(tableName);
+                return;
+            }
+
+            // -------------------------------------------------------------
+            // ຈັດລຽງຂໍ້ມູນ ຕາມວັນທີລ່າສຸດຂຶ້ນເທິງ (Newest / Latest Date First)
+            // -------------------------------------------------------------
+            const sortedItems = [...items].sort((a, b) => {
+                const dateA = parseToDateObj(a.create_at || a.created_at);
+                const dateB = parseToDateObj(b.create_at || b.created_at);
+
+                if (dateA && dateB) {
+                    return dateB.getTime() - dateA.getTime();
+                } else if (dateA) {
+                    return -1;
+                } else if (dateB) {
+                    return 1;
+                }
+
+                // fallback ສຳລັບກໍລະນີບໍ່ມີວັນທີ: ປຽບທຽບຕາມ ID
+                const pkKey = getPrimaryKeyName(tableName);
+                const idA = String(a[pkKey] || a.id_evaluatee || a.id_data || '');
+                const idB = String(b[pkKey] || b.id_evaluatee || b.id_data || '');
+                return idB.localeCompare(idA, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            tbody.innerHTML = sortedItems.map(item => {
+                if (tableName === 'admin') {
+                    const isChecked = selectedSet.has(String(item.admin_id));
+                    return `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="py-3 px-4 text-center">
+                                <input type="checkbox" value="${item.admin_id}" ${isChecked ? 'checked' : ''} onchange="handleRowCheckboxChange('admin', '${item.admin_id}', this.checked)" class="row-checkbox-admin w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                            </td>
+                            <td class="py-3 px-4 font-semibold text-slate-800">${item.admin_id}</td>
+                            <td class="py-3 px-4 font-mono">••••••••</td>
+                            <td class="py-3 px-4 text-slate-400 font-mono">${formatDateDisplay(item.created_at)}</td>
+                            <td class="py-3 px-4 text-right">
+                                <button onclick="openFormModal('admin', '${item.admin_id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg mr-1"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="deleteRecord('admin', 'admin_id', '${item.admin_id}')" class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                } else if (tableName === 'users') {
+                    const isChecked = selectedSet.has(String(item.id_user));
+                    return `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="py-3 px-4 text-center">
+                                <input type="checkbox" value="${item.id_user}" ${isChecked ? 'checked' : ''} onchange="handleRowCheckboxChange('users', '${item.id_user}', this.checked)" class="row-checkbox-users w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                            </td>
+                            <td class="py-3 px-4 font-semibold text-slate-800">${item.id_user}</td>
+                            <td class="py-3 px-4 font-mono">••••••••</td>
+                            <td class="py-3 px-4"><span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md font-medium text-[11px]">${item.department || '-'}</span></td>
+                            <td class="py-3 px-4 text-slate-400 font-mono">${formatDateDisplay(item.create_at || item.created_at)}</td>
+                            <td class="py-3 px-4 text-right">
+                                <button onclick="openFormModal('users', '${item.id_user}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg mr-1"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="deleteRecord('users', 'id_user', '${item.id_user}')" class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                } else if (tableName === 'evaluatees') {
+                    const evalId = item.id_evaluatee || item.id_evaluatees || item.id_evaluate || '-';
+                    const pkField = ('id_evaluatee' in item) ? 'id_evaluatee' : (('id_evaluate' in item) ? 'id_evaluate' : 'id_evaluatees');
+                    const isChecked = selectedSet.has(String(evalId));
+                    return `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="py-3 px-4 text-center">
+                                <input type="checkbox" value="${evalId}" ${isChecked ? 'checked' : ''} onchange="handleRowCheckboxChange('evaluatees', '${evalId}', this.checked)" class="row-checkbox-evaluatees w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                            </td>
+                            <td class="py-3 px-4 font-semibold text-slate-800">${evalId}</td>
+                            <td class="py-3 px-4 font-medium text-slate-700">${item.name || ''}</td>
+                            <td class="py-3 px-4">${item.surname || ''}</td>
+                            <td class="py-3 px-4"><span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px]">${item.position || '-'}</span></td>
+                            <td class="py-3 px-4">${item.department || '-'}</td>
+                            <td class="py-3 px-4 text-slate-400 font-mono">${formatDateDisplay(item.create_at || item.created_at)}</td>
+                            <td class="py-3 px-4 text-right">
+                                <button onclick="openFormModal('evaluatees', '${evalId}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg mr-1"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="deleteRecord('evaluatees', '${pkField}', '${evalId}')" class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                } else if (tableName === 'lists') {
+                    const isChecked = selectedSet.has(String(item.id_list));
+                    return `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="py-3 px-4 text-center">
+                                <input type="checkbox" value="${item.id_list}" ${isChecked ? 'checked' : ''} onchange="handleRowCheckboxChange('lists', '${item.id_list}', this.checked)" class="row-checkbox-lists w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                            </td>
+                            <td class="py-3 px-4 font-semibold text-slate-800">${item.id_list}</td>
+                            <td class="py-3 px-4 font-medium">${item.name || ''}</td>
+                            <td class="py-3 px-4 text-slate-400 font-mono">${formatDateDisplay(item.create_at || item.created_at)}</td>
+                            <td class="py-3 px-4 text-right">
+                                <button onclick="openFormModal('lists', '${item.id_list}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg mr-1"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="deleteRecord('lists', 'id_list', '${item.id_list}')" class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                } else if (tableName === 'datas') {
+                    const dept = getDepartmentForDataRecord(item);
+                    const isScoreValid = item.score !== null && item.score !== undefined && Number(item.score) > 0;
+                    const statusBadge = isScoreValid 
+                        ? `<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-check-circle"></i> ສຳເລັດ</span>`
+                        : `<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-clock"></i> ຍັງບໍ່ສຳເລັດ</span>`;
+
+                    const isChecked = selectedSet.has(String(item.id_data));
+                    return `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="py-3 px-4 text-center">
+                                <input type="checkbox" value="${item.id_data}" ${isChecked ? 'checked' : ''} onchange="handleRowCheckboxChange('datas', '${item.id_data}', this.checked)" class="row-checkbox-datas w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                            </td>
+                            <td class="py-3 px-4 font-semibold text-slate-800">${item.id_data}</td>
+                            <td class="py-3 px-4 text-blue-600 font-medium">${item.id_user || '-'}</td>
+                            <td class="py-3 px-4 text-emerald-600 font-medium">${item.id_evaluatee || '-'}</td>
+                            <td class="py-3 px-4"><span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-medium">${dept}</span></td>
+                            <td class="py-3 px-4">${item.time_add ?? '-'}</td>
+                            <td class="py-3 px-4">${item.model_add || '-'}</td>
+                            <td class="py-3 px-4"><span class="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded">${item.score ?? 0}</span></td>
+                            <td class="py-3 px-4">${statusBadge}</td>
+                            <td class="py-3 px-4 text-slate-500 max-w-xs truncate">${item.comment || '-'}</td>
+                            <td class="py-3 px-4 text-right">
+                                <button onclick="openFormModal('datas', '${item.id_data}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg mr-1"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="deleteRecord('datas', 'id_data', '${item.id_data}')" class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }).join('');
+
+            updateDeleteSelectedButton(tableName);
+        }
+
+        function openFormModal(tableName, primaryKeyValue = null) {
+            document.getElementById('formTable').value = tableName;
+            const isEdit = primaryKeyValue !== null;
+            document.getElementById('formIsEdit').value = isEdit ? 'true' : 'false';
+            document.getElementById('formOriginalId').value = primaryKeyValue || '';
+            document.getElementById('formModalTitle').innerText = (isEdit ? 'ແກ້ໄຂຂໍ້ມູນ ' : 'ເພີ່ມຂໍ້ມູນໃໝ່ ') + tableName.toUpperCase();
+
+            const container = document.getElementById('formFieldsContainer');
+            container.innerHTML = '';
+            let existingItem = {};
+            if (isEdit) {
+                const pkKey = getPrimaryKeyName(tableName);
+                existingItem = state.dataCache[tableName].find(i => String(i[pkKey] || i.id_evaluatee || i.id_evaluatees || i.id_evaluate) === String(primaryKeyValue)) || {};
+            }
+
+            if (tableName === 'admin') {
+                container.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Admin ID *</label>
+                        <input type="text" name="admin_id" value="${existingItem.admin_id || ''}" ${isEdit ? 'readonly class="w-full p-2.5 bg-slate-100 border rounded-xl font-medium text-xs text-slate-500"' : 'required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"'}>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password *</label>
+                        <input type="text" name="password" value="${existingItem.password || ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                `;
+            } else if (tableName === 'users') {
+                container.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">ID User *</label>
+                        <input type="text" name="id_user" value="${existingItem.id_user || ''}" ${isEdit ? 'readonly class="w-full p-2.5 bg-slate-100 border rounded-xl text-xs text-slate-500"' : 'required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"'}>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password *</label>
+                        <input type="text" name="password" value="${existingItem.password || ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Department *</label>
+                        <input type="text" name="department" value="${existingItem.department || ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                `;
+            } else if (tableName === 'evaluatees') {
+                container.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">ID Evaluatee (id_evaluatee) *</label>
+                        <input type="text" name="id_evaluatee" value="${existingItem.id_evaluatee || ''}" ${isEdit ? 'readonly class="w-full p-2.5 bg-slate-100 border rounded-xl text-xs text-slate-500"' : 'required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"'}>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Name *</label>
+                        <input type="text" name="name" value="${existingItem.name || ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Surname *</label>
+                        <input type="text" name="surname" value="${existingItem.surname || ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Position *</label>
+                        <input type="text" name="position" value="${existingItem.position || ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Department *</label>
+                        <input type="text" name="department" value="${existingItem.department || ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                `;
+            } else if (tableName === 'lists') {
+                let nextListId = '1';
+                if (!isEdit && state.dataCache.lists.length > 0) {
+                    const numericIds = state.dataCache.lists.map(item => parseInt(String(item.id_list).replace(/\D/g, ''), 10)).filter(n => !isNaN(n));
+                    if (numericIds.length > 0) nextListId = String(Math.max(...numericIds) + 1);
+                    else nextListId = String(state.dataCache.lists.length + 1);
+                }
+                container.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">ID List (Auto Generated) *</label>
+                        <input type="text" name="id_list" value="${isEdit ? (existingItem.id_list || '') : nextListId}" readonly class="w-full p-2.5 bg-slate-100 border rounded-xl text-xs font-medium text-slate-600 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Name *</label>
+                        <input type="text" name="name" value="${existingItem.name || ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                `;
+            } else if (tableName === 'datas') {
+                const userOptions = state.dataCache.users.map(u => `<option value="${u.id_user}" ${existingItem.id_user === u.id_user ? 'selected' : ''}>${u.id_user} (${u.department || 'N/A'})</option>`).join('');
+                const evalOptions = state.dataCache.evaluatees.map(e => {
+                    const eId = e.id_evaluatee || e.id_evaluatees || e.id_evaluate;
+                    return `<option value="${eId}" ${existingItem.id_evaluatee === eId ? 'selected' : ''}>${eId} - ${e.name || ''} ${e.surname || ''} (${e.department || 'N/A'})</option>`;
+                }).join('');
+
+                container.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">ID Data *</label>
+                        <input type="text" name="id_data" value="${existingItem.id_data || ''}" ${isEdit ? 'readonly class="w-full p-2.5 bg-slate-100 border rounded-xl text-xs text-slate-500"' : 'required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none"'}>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Select User (id_user Reference) *</label>
+                        <select name="id_user" required class="w-full p-2.5 border rounded-xl text-xs font-medium bg-white focus:ring-2 focus:ring-brand-500 outline-none"><option value="">-- ເລືອກ User --</option>${userOptions}</select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Select Evaluatee (id_evaluatee Reference) *</label>
+                        <select name="id_evaluatee" required class="w-full p-2.5 border rounded-xl text-xs font-medium bg-white focus:ring-2 focus:ring-brand-500 outline-none"><option value="">-- ເລືອກ Evaluatee --</option>${evalOptions}</select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Time Add (Int) *</label>
+                            <input type="number" name="time_add" value="${existingItem.time_add ?? ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Model Add *</label>
+                            <input type="text" name="model_add" value="${existingItem.model_add || ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Score *</label>
+                        <input type="number" step="0.01" name="score" value="${existingItem.score ?? ''}" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Comment *</label>
+                        <textarea name="comment" rows="2" required class="w-full p-2.5 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 outline-none">${existingItem.comment || ''}</textarea>
+                    </div>
+                `;
+            }
+
+            toggleModal('formModal');
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const tableName = document.getElementById('formTable').value;
+            const isEdit = document.getElementById('formIsEdit').value === 'true';
+            const formData = new FormData(e.target);
+            const payload = {};
+            formData.forEach((value, key) => { if (value !== '') payload[key] = value; });
+
+            if (!isEdit) payload['created_at'] = getFormattedCurrentDateTime();
+            const pkName = getPrimaryKeyName(tableName);
+
+            try {
+                let error;
+                if (isEdit) {
+                    const originalId = document.getElementById('formOriginalId').value;
+                    const res = await supabaseClient.from(tableName).update(payload).eq(pkName, originalId);
+                    error = res.error;
+                } else {
+                    const res = await supabaseClient.from(tableName).insert([payload]);
+                    error = res.error;
+                }
+
+                if (error) showToast('ບັນທຶກບໍ່ສຳເລັດ: ' + error.message, 'error');
+                else {
+                    showToast('ບັນທຶກຂໍ້ມູນຮຽບຮ້ອຍ!', 'success');
+                    toggleModal('formModal');
+                    fetchTableData(tableName);
+                }
+            } catch (err) { showToast('Database Error', 'error'); }
+        }
+
+        function deleteRecord(tableName, primaryKeyCol, idValue) {
+            showConfirmModal({
+                title: 'ຢືນຢັນການລົບຂໍ້ມູນ',
+                message: `ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລົບຂໍ້ມູນ ID: "${idValue}" ຈາກ Table ${tableName}?`,
+                onConfirm: async () => {
+                    try {
+                        const { error } = await supabaseClient.from(tableName).delete().eq(primaryKeyCol, idValue);
+                        if (error) showToast('ລົບຂໍ້ມູນບໍ່ສຳເລັດ: ' + error.message, 'error');
+                        else {
+                            showToast('ລົບຂໍ້ມູນສຳເລັດ!', 'success');
+                            fetchTableData(tableName);
+                        }
+                    } catch (err) { showToast('Delete error occurred', 'error'); }
+                }
+            });
+        }
+
+        function getPrimaryKeyName(tableName) {
+            switch (tableName) {
+                case 'admin': return 'admin_id';
+                case 'users': return 'id_user';
+                case 'evaluatees': return 'id_evaluatee';
+                case 'lists': return 'id_list';
+                case 'datas': return 'id_data';
+                default: return 'id';
+            }
+        }
+
+        function exportToExcel(tableName) {
+            let data = state.dataCache[tableName] || [];
+            if (tableName === 'datas' && (state.currentDatasDeptFilter || document.getElementById('datasSearchInput')?.value)) {
+                const query = document.getElementById('datasSearchInput')?.value.toLowerCase().trim() || '';
+                const deptFilter = state.currentDatasDeptFilter;
+                data = data.filter(item => {
+                    const itemDept = getDepartmentForDataRecord(item);
+                    if (deptFilter && itemDept !== deptFilter) return false;
+                    if (!query) return true;
+                    return Object.values(item).some(val => val !== null && val !== undefined && String(val).toLowerCase().includes(query)) || itemDept.toLowerCase().includes(query);
+                });
+            } else if (tableName === 'users' && state.currentUsersDeptFilter) {
+                data = data.filter(item => item.department === state.currentUsersDeptFilter);
+            } else if (tableName === 'evaluatees' && state.currentEvaluateesDeptFilter) {
+                data = data.filter(item => item.department === state.currentEvaluateesDeptFilter);
+            }
+
+            if (data.length === 0) {
+                showToast('ບໍ່ມີຂໍ້ມູນທີ່ຈະ Export', 'warning');
+                return;
+            }
+
+            const formattedData = data.map(item => {
+                const newItem = {};
+                for (const key in item) {
+                    let val = item[key];
+                    if ((key === 'create_at' || key === 'created_at') && val) newItem[key] = formatToFormattedDateTime(val);
+                    else newItem[key] = (val !== null && val !== undefined) ? String(val) : '';
+                }
+                return newItem;
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(formattedData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, tableName);
+            const nowStr = formatToFormattedDateTime(new Date()).replace(/[: ]/g, '_');
+            XLSX.writeFile(workbook, `${tableName}_export_${nowStr}.xlsx`);
+            showToast(`Export Table ${tableName} ເປັນ Excel ສຳເລັດ!`, 'success');
+        }
+
+        function importFromExcel(event, tableName) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', raw: false, cellDates: true });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                    if (!jsonData || jsonData.length === 0) {
+                        showToast('ບໍ່ພົບຂໍ້ມູນໃນໄຟລ໌ Excel', 'warning');
+                        return;
+                    }
+
+                    const cleanedData = jsonData.map(row => {
+                        const newRow = {};
+                        for (const key in row) {
+                            let val = row[key];
+                            if (val !== null && val !== undefined && String(val).trim() !== '') {
+                                if (key === 'create_at' || key === 'created_at') {
+                                    const parsedDate = parseToDateObj(val);
+                                    newRow[key] = parsedDate ? parsedDate.toISOString() : null;
+                                } else newRow[key] = String(val).trim();
+                            } else newRow[key] = null;
+                        }
+                        return newRow;
+                    });
+
+                    const { error } = await supabaseClient.from(tableName).upsert(cleanedData);
+                    if (error) showToast('Import ບໍ່ສຳເລັດ: ' + error.message, 'error');
+                    else {
+                        showToast(`Import ຂໍ້ມູນ ${cleanedData.length} ລາຍການ ເຂົ້າ ${tableName} ສຳເລັດ!`, 'success');
+                        fetchTableData(tableName);
+                    }
+                } catch (err) { showToast('ຮູບແບບໄຟລ໌ Excel ບໍ່ຖືກຕ້ອງ', 'error'); }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        window.onload = function() {
+            checkExistingSession();
+        };
+    </script>
+</body>
+</html>
